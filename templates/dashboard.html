@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Viegas - Dashboard de Monitoramento</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { background: #020617; color: #f8fafc; font-family: 'Rajdhani', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .offline-blink { animation: blink 0.6s infinite; background: #ef4444 !important; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        #map { height: 250px; border-radius: 20px; filter: invert(100%) hue-rotate(180deg) brightness(95%); }
+    </style>
+</head>
+
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-72 glass border-r border-white/5 p-6 flex flex-col justify-between">
+
+        <div>
+
+            <!-- Marca -->
+           <div class="mb-12">
+                <div class="flex items-center gap-4">
+
+                    <img 
+                        src="/static/img/logo-viegas.png"
+                        alt="Viegas - Inovação e Monitoramento Ambiental"
+                        class="h-70 w-auto object-contain drop-shadow-lg"
+                    />
+
+                </div>
+
+                <div class="mt-6 h-px bg-gradient-to-r from-emerald-500/40 to-transparent"></div>
+            </div>
+
+
+            <!-- Menu -->
+            <nav class="space-y-2">
+                <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border-l-4 border-emerald-500">
+                    <i class="fas fa-microchip mr-2"></i> Monitoramento
+                </div>
+            </nav>
+
+        </div>
+
+        <!-- Logout -->
+        <a href="/logout" class="text-slate-500 hover:text-red-400 text-sm font-bold uppercase tracking-widest transition">
+            Sair do Sistema
+        </a>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 p-8 overflow-y-auto">
+
+        <header class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold uppercase">Painel de Riscos Ambientais</h2>
+
+            <div id="status-card" class="bg-slate-800 px-6 py-2 rounded-full border border-slate-700 flex items-center space-x-2">
+                <div id="dot" class="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span id="status-text" class="text-xs font-bold uppercase tracking-widest text-emerald-400">
+                    Gateway Ativo
+                </span>
+            </div>
+        </header>
+
+        <!-- Cards principais -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+            <!-- H2S -->
+            <div class="glass p-6 rounded-[2rem] border-t-4 border-emerald-500">
+                <p class="text-xs text-slate-500 uppercase font-bold mb-4">
+                    H₂S (Ácido Sulfídrico)
+                </p>
+                <div class="flex items-baseline space-x-2">
+                    <span id="h2s" class="text-6xl font-bold">0.0</span>
+                    <span class="text-slate-500 text-xl">ppm</span>
+                </div>
+                <div id="risco-badge"
+                     class="mt-4 text-[10px] font-black uppercase px-2 py-1 bg-emerald-500/20 text-emerald-400 inline-block rounded">
+                    Status: Estável
+                </div>
+            </div>
+
+            <!-- CH4 -->
+            <div class="glass p-6 rounded-[2rem] border-t-4 border-sky-500">
+                <p class="text-xs text-slate-500 uppercase font-bold mb-4">
+                    Metano / CO₂
+                </p>
+                <div class="flex items-baseline space-x-2">
+                    <span id="ch4" class="text-6xl font-bold text-sky-400">0.0</span>
+                    <span class="text-slate-500 text-xl">ppm</span>
+                </div>
+                <p class="text-xs mt-4 text-slate-400">
+                    <i class="fas fa-thermometer-half mr-1"></i>
+                    Temperatura: <span id="temp">0</span>°C
+                </p>
+            </div>
+
+            <!-- Sincronização -->
+            <div class="glass p-6 rounded-[2rem] border-t-4 border-slate-700 flex flex-col justify-center text-center">
+                <p class="text-xs text-slate-500 uppercase font-bold mb-2">Sincronização</p>
+                <div id="time" class="text-3xl font-mono">--:--:--</div>
+            </div>
+
+        </div>
+
+        <!-- Mapa + Análise -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <div class="glass p-4 rounded-[2rem] overflow-hidden">
+                <div id="map"></div>
+            </div>
+
+            <div class="glass p-8 rounded-[2rem]">
+                <h3 class="text-xs font-bold uppercase text-slate-500 mb-4">
+                    Análise de Borda
+                </h3>
+                <p class="text-sm text-slate-300 leading-relaxed italic">
+                    O processamento local via gateway garante latência mínima para detecção
+                    de gases tóxicos. A camada de segurança do túnel monitora tentativas
+                    de intrusão externa.
+                </p>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        var map = L.map('map').setView([-12.97, -38.50], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.marker([-12.97, -38.50]).addTo(map);
+
+        async function update() {
+            try {
+                const r = await fetch('/api/status');
+                const d = await r.json();
+
+                document.getElementById('h2s').innerText = d.h2s;
+                document.getElementById('ch4').innerText = d.ch4;
+                document.getElementById('temp').innerText = d.temp;
+                document.getElementById('time').innerText = d.time_str;
+                document.getElementById('risco-badge').innerText = "Status: " + d.risco;
+
+                const delay = (Date.now()/1000) - d.ts;
+
+                if (d.ts > 0 && delay > 30) {
+                    document.getElementById('status-card').className =
+                        "offline-blink px-6 py-2 rounded-full flex items-center space-x-2";
+                    document.getElementById('status-text').innerText =
+                        "ALERTA: ATAQUE OU FALHA";
+                    document.getElementById('status-text').className =
+                        "text-xs font-black uppercase text-white";
+                } else {
+                    document.getElementById('status-card').className =
+                        "bg-slate-800 px-6 py-2 rounded-full border border-slate-700 flex items-center space-x-2";
+                    document.getElementById('status-text').innerText =
+                        "Gateway Ativo";
+                    document.getElementById('status-text').className =
+                        "text-xs font-bold uppercase tracking-widest text-emerald-400";
+                }
+
+            } catch (e) {}
+        }
+
+        setInterval(update, 3000);
+    </script>
+
+</body>
+</html>
