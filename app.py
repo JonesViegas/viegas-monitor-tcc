@@ -1,19 +1,32 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import datetime
 import time
+import json
+import os
 
 app = Flask(__name__)
 app.secret_key = "viegas_security_key"
 
-# Banco de dados em memória - Monitorando os dois sensores
-monitoramento = {
-    "h2s": 0.0,
-    "ch4": 0.0,
-    "temp": 0.0,
-    "risco": "Estável",
-    "cor_risco": "emerald",
-    "last_update": 0
-}
+DATA_FILE = "dados_sensores.json"
+
+# Função para carregar dados do arquivo (Simulando o Banco de Dados)
+def carregar_dados():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, 'r') as f:
+            return json.load(f)
+    return {
+        "h2s": 0.0, "ch4": 0.0, "temp": 0.0, 
+        "risco": "Estável", "cor_risco": "emerald", 
+        "last_update": 0, "device_serial": "eui-ac1f09fffe090b22"
+    }
+
+# Função para salvar dados no arquivo
+def salvar_dados(dados):
+    with open(DATA_FILE, 'w') as f:
+        json.dump(dados, f)
+
+# Inicializa o monitoramento
+monitoramento = carregar_dados()
 
 USER_ADMIN = "admin"
 PASS_ADMIN = "viegas2026"
@@ -46,8 +59,9 @@ def dashboard():
 @app.route('/api/status')
 def get_status():
     if 'logged_in' not in session: return jsonify({"error": "unauthorized"}), 401
-    time_str = datetime.datetime.fromtimestamp(monitoramento["last_update"]).strftime("%H:%M:%S") if monitoramento["last_update"] > 0 else "--:--:--"
-    return jsonify({**monitoramento, "time_str": time_str, "ts": monitoramento["last_update"]})
+    current_data = carregar_dados()
+    time_str = datetime.datetime.fromtimestamp(current_data["last_update"]).strftime("%H:%M:%S") if current_data["last_update"] > 0 else "--:--:--"
+    return jsonify({**current_data, "time_str": time_str, "ts": current_data["last_update"]})
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -60,21 +74,18 @@ def webhook():
             var = item.get('variable')
             val = float(item.get('value'))
             
-            # Lógica para H2S (AquaGuard)
             if var in ['h2s_ppm', 'gas_ppm']:
                 monitoramento['h2s'] = val
                 if val > 15: monitoramento['risco'], monitoramento['cor_risco'] = "CRÍTICO", "red"
                 elif val > 5: monitoramento['risco'], monitoramento['cor_risco'] = "ALERTA", "orange"
                 else: monitoramento['risco'], monitoramento['cor_risco'] = "ESTÁVEL", "emerald"
-            
-            # Lógica para Metano / CO2 (Segundo Dispositivo)
             elif var in ['ch4_ppm', 'gas_hpa', 'co2_ppm']:
                 monitoramento['ch4'] = val
-            
             elif var in ['temperature', 'temperatura']:
                 monitoramento['temp'] = val
 
         monitoramento["last_update"] = time.time()
+        salvar_dados(monitoramento) # Grava no arquivo JSON
         return jsonify({"status": "success"}), 200
     except Exception as e:
         return str(e), 500
