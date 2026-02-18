@@ -2,30 +2,121 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Viegas Soluções</title>
+    
+    <!-- Frameworks e Fontes -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        body { background: #020617; font-family: 'Rajdhani', sans-serif; }
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        body { 
+            background: #020617; 
+            font-family: 'Rajdhani', sans-serif;
+            background-image: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            overflow: hidden;
+        }
+
+        /* Efeito de Vidro */
+        .glass { 
+            background: rgba(15, 23, 42, 0.8); 
+            backdrop-filter: blur(15px); 
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Animação de entrada */
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Inputs */
+        .tech-input {
+            background: rgba(2, 6, 23, 0.6) !important;
+            border: 1px solid rgba(51, 65, 85, 1);
+            transition: all 0.3s ease;
+        }
+
+        .tech-input:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+            outline: none;
+        }
+
+        .btn-emerald {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-emerald:hover {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen">
-    <div class="glass p-10 rounded-[2.5rem] w-96 text-center border-t-4 border-emerald-500">
-        <div class="bg-emerald-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/50">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z"/><path d="M2 17L12 22L22 17"/><path d="M2 12L12 17L22 12"/>
-            </svg>
-        </div>
-        <h1 class="text-3xl font-bold text-white mb-2 tracking-tighter uppercase">Viegas Soluções</h1>
-        <p class="text-slate-500 text-xs font-bold uppercase mb-8 tracking-widest">Acesso Restrito</p>
+
+<body class="flex items-center justify-center h-screen p-4">
+
+    <div class="glass p-8 md:p-12 rounded-[3rem] w-full max-w-md text-center border-t-2 border-emerald-500/30 fade-in">
         
-        <form method="POST">
-            <input type="text" name="username" placeholder="Usuário" class="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl mb-4 text-white focus:outline-none focus:border-emerald-500">
-            <input type="password" name="password" placeholder="Senha" class="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl mb-6 text-white focus:outline-none focus:border-emerald-500">
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition">ENTRAR NO SISTEMA</button>
-            {% if error %}<p class="text-red-500 mt-4 text-xs font-bold">{{ error }}</p>{% endif %}
+        <!-- Logo e Identidade -->
+        <div class="mb-10">
+            <div class="relative inline-block">
+                <img src="/static/img/logo-viegas.png" alt="Viegas Soluções" class="h-36 mx-auto drop-shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-emerald-500/70 text-xs font-bold uppercase tracking-[0.2em]">Acesso Restrito ao Gateway</p>
+        </div>
+        
+        <!-- Formulário de Login -->
+        <form method="POST" class="space-y-4">
+            <div class="relative text-left">
+                <label class="text-[10px] font-bold text-slate-500 uppercase ml-4 mb-1 block tracking-widest">Identificador</label>
+                <input type="text" name="username" required
+                    class="w-full tech-input p-4 rounded-2xl text-white text-sm placeholder-slate-600" 
+                    placeholder="usuário_admin">
+            </div>
+
+            <div class="relative text-left">
+                <label class="text-[10px] font-bold text-slate-500 uppercase ml-4 mb-1 block tracking-widest">Chave de Acesso</label>
+                <input type="password" name="password" required
+                    class="w-full tech-input p-4 rounded-2xl text-white text-sm placeholder-slate-600" 
+                    placeholder="••••••••">
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" 
+                    class="btn-emerald w-full text-white font-black text-sm py-4 rounded-2xl uppercase tracking-[0.2em]">
+                    Autenticar no Sistema
+                </button>
+            </div>
+
+            <!-- Mensagem de Erro -->
+            {% if error %}
+            <div class="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                <p class="text-red-500 text-xs font-bold uppercase tracking-tight">
+                    <i class="fas fa-exclamation-circle mr-1"></i> {{ error }}
+                </p>
+            </div>
+            {% endif %}
         </form>
+
+        <!-- Rodapé do Login -->
+        <footer class="mt-12">
+            <p class="text-slate-600 text-[9px] uppercase tracking-widest font-bold">
+                &copy; 2026 Inovação em Redes Distribuídas
+            </p>
+        </footer>
     </div>
+
+    <!-- FontAwesome para ícones -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 </body>
 </html>
