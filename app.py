@@ -7,7 +7,6 @@ app.secret_key = "viegas_security_key"
 DATA_FILE = "dados_sensores.json"
 MAX_HISTORY = 10
 
-# IDs REAIS (BAHIA)
 ID_RAK = "674665c3c948600008590f2e"
 ID_NIT = "6567877910457c000a62e679"
 
@@ -58,39 +57,45 @@ def get_status():
         data[key]['time_str'] = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts > 0 else "--:--:--"
     return jsonify(data)
 
-# ==========================================
-# WEBHOOK REESTRUTURADO (LÓGICA ECOGAS)
-# ==========================================
-@app.route('/api/v1/webhook/tago', methods=['POST']) # Rota que a Tago está usando
+# ESTA ROTA ACEITA TANTO O MIKROTIK QUANTO A TAGO AGORA
+@app.route('/webhook', methods=['POST'])
+@app.route('/api/v1/webhook/tago', methods=['POST'])
 def webhook():
     global monitoramento
     try:
         payload = request.get_json(force=True, silent=True)
-        if not payload: return jsonify({"status": "error"}), 400
+        if not payload: return jsonify({"status": "error", "msg": "sem payload"}), 400
         if isinstance(payload, dict): payload = [payload]
 
-        # Timestamp em UTC para sincronizar com o Dashboard
-        timestamp_atual = datetime.datetime.now(datetime.timezone.utc).timestamp()
+        timestamp_atual = time.time()
         time_str = datetime.datetime.fromtimestamp(timestamp_atual).strftime("%H:%M:%S")
 
+        # Mapeamento estendido para aceitar TUDO
         variable_map = {
             "gas_ppm": "GAS", "gas": "GAS", "h2s": "GAS", "h2s_ppm": "GAS",
-            "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
-            "humidity": "UMID", "umid": "UMID", "1_v": "UMID"
+            "temperatura": "TEMP", "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
+            "umidade": "UMID", "humidity": "UMID", "umid": "UMID", "1_v": "UMID"
         }
 
         for item in payload:
-            serial = str(item.get("device", "")).strip()
-            var_raw = str(item.get("variable", "")).lower().strip()
+            # Extração que aceita "variable" ou "variável"
+            var_raw = item.get("variable") or item.get("variável")
+            if not var_raw: continue
+            var_raw = str(var_raw).lower().strip()
+
+            # Extração que aceita "value" ou "valor"
+            val_raw = item.get("value") or item.get("valor")
+            if val_raw is None: continue
             
             try:
-                val_raw = item.get("value")
                 value = float(str(val_raw).replace(',', '.'))
             except: continue
 
+            serial = str(item.get("device", "")).strip()
             gas_type = variable_map.get(var_raw)
             if not gas_type: continue
 
+            # LÓGICA DE DESTINO
             if serial == ID_RAK:
                 if gas_type == "GAS":
                     monitoramento['rak']['h2s'] = value
@@ -107,7 +112,7 @@ def webhook():
                     monitoramento['nit']['temp'] = value
                 monitoramento['nit']['ts'] = timestamp_atual
 
-            elif serial == "mikrotik_edge":
+            elif serial == "mikrotik_edge" or not serial: # Se vier do MikroTik sem serial
                 if gas_type == "GAS":
                     monitoramento['sim']['h2s'] = value
                     monitoramento['sim']['ts'] = timestamp_atual
@@ -117,7 +122,8 @@ def webhook():
         salvar_dados(monitoramento)
         return jsonify({"status": "success"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "details": str(e)}), 500
+        print(traceback.format_exc())
+        return jsonify({"status": "error"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
