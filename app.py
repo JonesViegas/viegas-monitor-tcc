@@ -61,44 +61,36 @@ def get_status():
 # ==========================================
 # WEBHOOK REESTRUTURADO (LÓGICA ECOGAS)
 # ==========================================
-@app.route('/webhook', methods=['POST'])
+@app.route('/api/v1/webhook/tago', methods=['POST']) # Rota que a Tago está usando
 def webhook():
     global monitoramento
     try:
-        # 1. Obter payload (Igual ao EcoGas)
         payload = request.get_json(force=True, silent=True)
         if not payload: return jsonify({"status": "error"}), 400
         if isinstance(payload, dict): payload = [payload]
 
-        timestamp_atual = time.time()
+        # Timestamp em UTC para sincronizar com o Dashboard
+        timestamp_atual = datetime.datetime.now(datetime.timezone.utc).timestamp()
         time_str = datetime.datetime.fromtimestamp(timestamp_atual).strftime("%H:%M:%S")
 
-        # 2. Mapeamento de Variáveis (Igual ao EcoGas)
         variable_map = {
-            "temperatura": "TEMP", "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
-            "umidade": "UMID", "humidity": "UMID", "umid": "UMID", "1_v": "UMID",
-            "gas_ppm": "GAS", "gas": "GAS", "h2s": "GAS", "h2s_ppm": "GAS"
+            "gas_ppm": "GAS", "gas": "GAS", "h2s": "GAS", "h2s_ppm": "GAS",
+            "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
+            "humidity": "UMID", "umid": "UMID", "1_v": "UMID"
         }
 
         for item in payload:
-            # Extração Blindada
             serial = str(item.get("device", "")).strip()
             var_raw = str(item.get("variable", "")).lower().strip()
             
-            # Conversão de Valor (Trata vírgula e strings)
-            val_raw = item.get("value")
             try:
-                if isinstance(val_raw, str):
-                    value = float(val_raw.replace(',', '.').strip())
-                else:
-                    value = float(val_raw)
+                val_raw = item.get("value")
+                value = float(str(val_raw).replace(',', '.'))
             except: continue
 
-            # Tradução da variável
             gas_type = variable_map.get(var_raw)
             if not gas_type: continue
 
-            # --- LÓGICA RAK (Campo A) ---
             if serial == ID_RAK:
                 if gas_type == "GAS":
                     monitoramento['rak']['h2s'] = value
@@ -107,7 +99,6 @@ def webhook():
                     monitoramento['rak']['temp'] = value
                 monitoramento['rak']['ts'] = timestamp_atual
 
-            # --- LÓGICA NIT (Campo B) ---
             elif serial == ID_NIT:
                 if gas_type == "UMID":
                     monitoramento['nit']['umid'] = value
@@ -116,7 +107,6 @@ def webhook():
                     monitoramento['nit']['temp'] = value
                 monitoramento['nit']['ts'] = timestamp_atual
 
-            # --- LÓGICA MIKROTIK (Auditoria) ---
             elif serial == "mikrotik_edge":
                 if gas_type == "GAS":
                     monitoramento['sim']['h2s'] = value
@@ -124,16 +114,10 @@ def webhook():
                     monitoramento['sim']['risco'] = "CRÍTICO" if value > 15 else "ESTÁVEL"
                     monitoramento['sim']['history'].insert(0, {"time": time_str, "val": value, "risco": monitoramento['sim']['risco']})
 
-        # Prunar históricos
-        for key in ['rak', 'nit', 'sim']:
-            monitoramento[key]['history'] = monitoramento[key]['history'][:MAX_HISTORY]
-
         salvar_dados(monitoramento)
         return jsonify({"status": "success"}), 200
-
     except Exception as e:
-        print("ERRO WEBHOOK:", traceback.format_exc())
-        return jsonify({"status": "error"}), 500
+        return jsonify({"status": "error", "details": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
