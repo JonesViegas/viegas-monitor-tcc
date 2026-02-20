@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import datetime, time, json, os
+import datetime, time, json, os, traceback
 
 app = Flask(__name__)
 app.secret_key = "viegas_security_key"
@@ -7,7 +7,7 @@ app.secret_key = "viegas_security_key"
 DATA_FILE = "dados_sensores.json"
 MAX_HISTORY = 10
 
-# IDs REAIS DOS SEUS SENSORES (BAHIA) - CONFIRME NO TAGO.IO
+# IDs REAIS (BAHIA)
 ID_RAK = "674665c3c948600008590f2e"
 ID_NIT = "6567877910457c000a62e679"
 
@@ -58,58 +58,82 @@ def get_status():
         data[key]['time_str'] = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts > 0 else "--:--:--"
     return jsonify(data)
 
+# ==========================================
+# WEBHOOK REESTRUTURADO (LÓGICA ECOGAS)
+# ==========================================
 @app.route('/webhook', methods=['POST'])
 def webhook():
     global monitoramento
     try:
-        data = request.get_json(force=True)
-        payload = data if isinstance(data, list) else [data]
+        # 1. Obter payload (Igual ao EcoGas)
+        payload = request.get_json(force=True, silent=True)
+        if not payload: return jsonify({"status": "error"}), 400
+        if isinstance(payload, dict): payload = [payload]
+
         timestamp_atual = time.time()
         time_str = datetime.datetime.fromtimestamp(timestamp_atual).strftime("%H:%M:%S")
 
+        # 2. Mapeamento de Variáveis (Igual ao EcoGas)
+        variable_map = {
+            "temperatura": "TEMP", "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
+            "umidade": "UMID", "humidity": "UMID", "umid": "UMID", "1_v": "UMID",
+            "gas_ppm": "GAS", "gas": "GAS", "h2s": "GAS", "h2s_ppm": "GAS"
+        }
+
         for item in payload:
-            dev_id = str(item.get('device'))
-            var = item.get('variable')
-            try:
-                val = float(item.get('value'))
-            except:
-                continue
+            # Extração Blindada
+            serial = str(item.get("device", "")).strip()
+            var_raw = str(item.get("variable", "")).lower().strip()
             
+            # Conversão de Valor (Trata vírgula e strings)
+            val_raw = item.get("value")
+            try:
+                if isinstance(val_raw, str):
+                    value = float(val_raw.replace(',', '.').strip())
+                else:
+                    value = float(val_raw)
+            except: continue
+
+            # Tradução da variável
+            gas_type = variable_map.get(var_raw)
+            if not gas_type: continue
+
             # --- LÓGICA RAK (Campo A) ---
-            if dev_id == ID_RAK:
-                if var in ['gas_ppm', 'gas', 'h2s']: 
-                    monitoramento['rak']['h2s'] = val
-                    monitoramento['rak']['history'].insert(0, {"time": time_str, "val": val})
-                elif var in ['temperature', 'temp']:
-                    monitoramento['rak']['temp'] = val
+            if serial == ID_RAK:
+                if gas_type == "GAS":
+                    monitoramento['rak']['h2s'] = value
+                    monitoramento['rak']['history'].insert(0, {"time": time_str, "val": value})
+                elif gas_type == "TEMP":
+                    monitoramento['rak']['temp'] = value
                 monitoramento['rak']['ts'] = timestamp_atual
 
             # --- LÓGICA NIT (Campo B) ---
-            elif dev_id == ID_NIT:
-                if var in ['humidity', '1_v', 'umid']: 
-                    monitoramento['nit']['umid'] = val
-                    monitoramento['nit']['history'].insert(0, {"time": time_str, "val": val})
-                elif var in ['temperature', '0_v', 'temp']:
-                    monitoramento['nit']['temp'] = val
+            elif serial == ID_NIT:
+                if gas_type == "UMID":
+                    monitoramento['nit']['umid'] = value
+                    monitoramento['nit']['history'].insert(0, {"time": time_str, "val": value})
+                elif gas_type == "TEMP":
+                    monitoramento['nit']['temp'] = value
                 monitoramento['nit']['ts'] = timestamp_atual
 
             # --- LÓGICA MIKROTIK (Auditoria) ---
-            elif dev_id == "mikrotik_edge":
-                if var == 'h2s_ppm':
-                    monitoramento['sim']['h2s'] = val
+            elif serial == "mikrotik_edge":
+                if gas_type == "GAS":
+                    monitoramento['sim']['h2s'] = value
                     monitoramento['sim']['ts'] = timestamp_atual
-                    monitoramento['sim']['risco'] = "CRÍTICO" if val > 15 else "ESTÁVEL"
-                    monitoramento['sim']['history'].insert(0, {"time": time_str, "val": val, "risco": monitoramento['sim']['risco']})
+                    monitoramento['sim']['risco'] = "CRÍTICO" if value > 15 else "ESTÁVEL"
+                    monitoramento['sim']['history'].insert(0, {"time": time_str, "val": value, "risco": monitoramento['sim']['risco']})
 
-        # Limpa histórico antigo
+        # Prunar históricos
         for key in ['rak', 'nit', 'sim']:
             monitoramento[key]['history'] = monitoramento[key]['history'][:MAX_HISTORY]
 
         salvar_dados(monitoramento)
-        return "OK", 200
+        return jsonify({"status": "success"}), 200
+
     except Exception as e:
-        print(f"Erro: {e}")
-        return str(e), 500
+        print("ERRO WEBHOOK:", traceback.format_exc())
+        return jsonify({"status": "error"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
