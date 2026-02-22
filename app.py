@@ -1,31 +1,60 @@
+
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import datetime, time, json, os, traceback
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timezone
+import os, time, traceback
+from dotenv import load_dotenv
+
+# Carrega o .env explicitamente
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "viegas_security_key"
+app.secret_key = os.getenv("SECRET_KEY")
 
+# Pega a URL do banco do .env (local) ou do Render (nuvem)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Se for no Render, ele corrige automaticamente o protocolo
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+
+
+# ==========================================
+# 1. CONFIGURAÇÃO DO BANCO DE DADOS (POSTGRES)
+# ==========================================
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://seu_usuario:senha@localhost/nome_do_banco')
+if DATABASE_URL.startswith("postgres://"): 
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# MODELO DE TABELA
+class Leitura(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.String(50), nullable=False)
+    variable = db.Column(db.String(50), nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+with app.app_context():
+    db.create_all()
+
+# ==========================================
+# 2. CONFIGURAÇÕES GERAIS E IDS
+# ==========================================
 DATA_FILE = "dados_sensores.json"
 MAX_HISTORY = 10
-
 ID_RAK = "674665c3c948600008590f2e"
 ID_NIT = "6567877910457c000a62e679"
 
-def carregar_dados():
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, 'r') as f: return json.load(f)
-        except: pass
-    return {
-        "rak": {"temp": 0.0, "h2s": 0.0, "ts": 0, "history": []},
-        "nit": {"temp": 0.0, "umid": 0.0, "ts": 0, "history": []},
-        "sim": {"h2s": 0.0, "ts": 0, "risco": "Estável", "cor": "emerald", "history": []}
-    }
-
-def salvar_dados(dados):
-    with open(DATA_FILE, 'w') as f: json.dump(dados, f)
-
-monitoramento = carregar_dados()
-
+# ==========================================
+# 3. ROTAS DE NAVEGAÇÃO
+# ==========================================
 @app.route('/')
 def home():
     if 'logged_in' in session: return redirect(url_for('dashboard'))
@@ -49,79 +78,94 @@ def dashboard():
     if 'logged_in' not in session: return redirect(url_for('login'))
     return render_template('dashboard.html')
 
+# ==========================================
+# 4. API STATUS (LENDO DO POSTGRES)
+# ==========================================
 @app.route('/api/status')
 def get_status():
-    data = carregar_dados()
-    for key in ['rak', 'nit', 'sim']:
-        ts = data[key].get('ts', 0)
-        data[key]['time_str'] = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts > 0 else "--:--:--"
-    return jsonify(data)
+    try:
+        def get_latest(dev_id, var):
+            row = Leitura.query.filter_by(device_id=dev_id, variable=var).order_by(Leitura.id.desc()).first()
+            return row.value if row else 0.0
 
-# ESTA ROTA ACEITA TANTO O MIKROTIK QUANTO A TAGO AGORA
+        def get_ts(dev_id):
+            row = Leitura.query.filter_by(device_id=dev_id).order_by(Leitura.id.desc()).first()
+            return row.timestamp.timestamp() if row else 0
+
+        def get_history(dev_id, var=None):
+            query = Leitura.query.filter_by(device_id=dev_id)
+            if var: query = query.filter_by(variable=var)
+            rows = query.order_by(Leitura.id.desc()).limit(MAX_HISTORY).all()
+            return [{"time": r.timestamp.strftime("%H:%M:%S"), "val": r.value, "risco": ("CRÍTICO" if r.value > 15 else "ESTÁVEL")} for r in rows]
+
+        # Montando o JSON para o Dashboard
+        data = {
+            "rak": {
+                "h2s": get_latest(ID_RAK, "GAS"),
+                "temp": get_latest(ID_RAK, "TEMP"),
+                "ts": get_ts(ID_RAK),
+                "history": get_history(ID_RAK, "GAS")
+            },
+            "nit": {
+                "umid": get_latest(ID_NIT, "UMID"),
+                "temp": get_latest(ID_NIT, "TEMP"),
+                "ts": get_ts(ID_NIT),
+                "history": get_history(ID_NIT, "UMID")
+            },
+            "sim": {
+                "h2s": get_latest("mikrotik_edge", "GAS"),
+                "ts": get_ts("mikrotik_edge"),
+                "risco": "CRÍTICO" if get_latest("mikrotik_edge", "GAS") > 15 else "ESTÁVEL",
+                "history": get_history("mikrotik_edge", "GAS")
+            }
+        }
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# 5. WEBHOOK (SALVANDO NO POSTGRES)
+# ==========================================
 @app.route('/webhook', methods=['POST'])
 @app.route('/api/v1/webhook/tago', methods=['POST'])
 def webhook():
-    global monitoramento
     try:
         payload = request.get_json(force=True, silent=True)
-        if not payload: return jsonify({"status": "error", "msg": "sem payload"}), 400
+        if not payload: return jsonify({"status": "error"}), 400
         if isinstance(payload, dict): payload = [payload]
 
-        timestamp_atual = time.time()
-        time_str = datetime.datetime.fromtimestamp(timestamp_atual).strftime("%H:%M:%S")
-
-        # Mapeamento estendido para aceitar TUDO
         variable_map = {
             "gas_ppm": "GAS", "gas": "GAS", "h2s": "GAS", "h2s_ppm": "GAS",
-            "temperatura": "TEMP", "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
-            "umidade": "UMID", "humidity": "UMID", "umid": "UMID", "1_v": "UMID"
+            "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP", "temperatura": "TEMP",
+            "humidity": "UMID", "umid": "UMID", "1_v": "UMID", "umidade": "UMID"
         }
 
         for item in payload:
-            # Extração que aceita "variable" ou "variável"
-            var_raw = item.get("variable") or item.get("variável")
-            if not var_raw: continue
-            var_raw = str(var_raw).lower().strip()
+            serial = str(item.get("device", "")).strip()
+            # Se não houver serial, assumimos que é o MikroTik/Simulador
+            if not serial or serial == "mikrotik_edge":
+                serial = "mikrotik_edge"
 
-            # Extração que aceita "value" ou "valor"
+            var_raw = str(item.get("variable") or item.get("variável") or "").lower().strip()
             val_raw = item.get("value") or item.get("valor")
-            if val_raw is None: continue
             
+            if not var_raw or val_raw is None: continue
             try:
                 value = float(str(val_raw).replace(',', '.'))
             except: continue
 
-            serial = str(item.get("device", "")).strip()
             gas_type = variable_map.get(var_raw)
             if not gas_type: continue
 
-            # LÓGICA DE DESTINO
-            if serial == ID_RAK:
-                if gas_type == "GAS":
-                    monitoramento['rak']['h2s'] = value
-                    monitoramento['rak']['history'].insert(0, {"time": time_str, "val": value})
-                elif gas_type == "TEMP":
-                    monitoramento['rak']['temp'] = value
-                monitoramento['rak']['ts'] = timestamp_atual
+            # --- SALVANDO NO BANCO DE DADOS ---
+            nova_leitura = Leitura(device_id=serial, variable=gas_type, value=value)
+            db.session.add(nova_leitura)
 
-            elif serial == ID_NIT:
-                if gas_type == "UMID":
-                    monitoramento['nit']['umid'] = value
-                    monitoramento['nit']['history'].insert(0, {"time": time_str, "val": value})
-                elif gas_type == "TEMP":
-                    monitoramento['nit']['temp'] = value
-                monitoramento['nit']['ts'] = timestamp_atual
-
-            elif serial == "mikrotik_edge" or not serial: # Se vier do MikroTik sem serial
-                if gas_type == "GAS":
-                    monitoramento['sim']['h2s'] = value
-                    monitoramento['sim']['ts'] = timestamp_atual
-                    monitoramento['sim']['risco'] = "CRÍTICO" if value > 15 else "ESTÁVEL"
-                    monitoramento['sim']['history'].insert(0, {"time": time_str, "val": value, "risco": monitoramento['sim']['risco']})
-
-        salvar_dados(monitoramento)
+        db.session.commit()
         return jsonify({"status": "success"}), 200
+
     except Exception as e:
+        db.session.rollback()
         print(traceback.format_exc())
         return jsonify({"status": "error"}), 500
 
