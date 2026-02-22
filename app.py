@@ -4,6 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
 import os, time, traceback
 from dotenv import load_dotenv
+import pytz
+
+BR_TIMEZONE = pytz.timezone('America/Bahia')
 
 # Carrega o .env explicitamente
 load_dotenv()
@@ -91,21 +94,30 @@ def get_status():
 
         def get_ts(dev_id):
             row = Leitura.query.filter_by(device_id=dev_id).order_by(Leitura.id.desc()).first()
-            return row.timestamp.timestamp() if row else 0
+            if row:
+                # Converte o tempo do banco (UTC) para o horário da Bahia
+                dt_br = row.timestamp.replace(tzinfo=pytz.utc).astimezone(BR_TIMEZONE)
+                return dt_br.timestamp()
+            return 0
 
         def get_history(dev_id, var=None):
             query = Leitura.query.filter_by(device_id=dev_id)
             if var: query = query.filter_by(variable=var)
-            rows = query.order_by(Leitura.id.desc()).limit(MAX_HISTORY).all()
-            return [{"time": r.timestamp.strftime("%H:%M:%S"), "val": r.value, "risco": ("CRÍTICO" if r.value > 15 else "ESTÁVEL")} for r in rows]
+            rows = query.order_by(Leitura.id.desc()).limit(10).all()
+            history = []
+            for r in rows:
+                dt_br = r.timestamp.replace(tzinfo=pytz.utc).astimezone(BR_TIMEZONE)
+                history.append({"time": dt_br.strftime("%H:%M:%S"), "val": r.value})
+            return history
 
-        # Montando o JSON para o Dashboard
         data = {
             "rak": {
-                "h2s": get_latest(ID_RAK, "GAS"),
+                "h2s": get_latest(ID_RAK, "H2S"),
+                "co2": get_latest(ID_RAK, "CO2"),
+                "ch4": get_latest(ID_RAK, "CH4"),
                 "temp": get_latest(ID_RAK, "TEMP"),
                 "ts": get_ts(ID_RAK),
-                "history": get_history(ID_RAK, "GAS")
+                "history": get_history(ID_RAK, "H2S")
             },
             "nit": {
                 "umid": get_latest(ID_NIT, "UMID"),
@@ -114,15 +126,16 @@ def get_status():
                 "history": get_history(ID_NIT, "UMID")
             },
             "sim": {
-                "h2s": get_latest("mikrotik_edge", "GAS"),
+                "h2s": get_latest("mikrotik_edge", "H2S"),
                 "ts": get_ts("mikrotik_edge"),
-                "risco": "CRÍTICO" if get_latest("mikrotik_edge", "GAS") > 15 else "ESTÁVEL",
-                "history": get_history("mikrotik_edge", "GAS")
+                "risco": "CRÍTICO" if get_latest("mikrotik_edge", "H2S") > 15 else "ESTÁVEL",
+                "history": get_history("mikrotik_edge", "H2S")
             }
         }
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # ==========================================
 # 5. WEBHOOK (SALVANDO NO POSTGRES)
@@ -136,9 +149,11 @@ def webhook():
         if isinstance(payload, dict): payload = [payload]
 
         variable_map = {
-            "gas_ppm": "GAS", "gas": "GAS", "h2s": "GAS", "h2s_ppm": "GAS",
-            "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP", "temperatura": "TEMP",
-            "humidity": "UMID", "umid": "UMID", "1_v": "UMID", "umidade": "UMID"
+            "gas_ppm": "H2S", "h2s": "H2S", "h2s_ppm": "H2S",
+            "co2": "CO2", "co2_ppm": "CO2",
+            "metano": "CH4", "ch4": "CH4", "metano_ppm": "CH4",
+            "temperature": "TEMP", "temp": "TEMP", "0_v": "TEMP",
+            "humidity": "UMID", "umid": "UMID", "1_v": "UMID"
         }
 
         for item in payload:

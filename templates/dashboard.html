@@ -19,14 +19,12 @@
             overflow-x: hidden;
         }
         
-        /* Efeito de Vidro (Glassmorphism) */
         .glass { 
             background: rgba(15, 23, 42, 0.7); 
             backdrop-filter: blur(12px); 
             border: 1px solid rgba(255,255,255,0.05); 
         }
 
-        /* Animação de Alerta Crítico */
         .offline-blink { 
             animation: blink 0.8s infinite; 
             background: #ef4444 !important; 
@@ -36,14 +34,12 @@
             50% { opacity: 0.6; } 
         }
 
-        /* Estilização do Mapa para Dark Mode */
         #map { 
             height: 300px; 
             border-radius: 24px; 
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); 
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #020617; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
@@ -61,13 +57,11 @@
     <!-- Sidebar Lateral -->
     <aside class="w-72 glass border-r border-white/5 p-6 flex flex-col justify-between hidden md:flex">
         <div>
-            <!-- Marca Viegas -->
             <div class="mb-10">
                 <img src="/static/img/logo-viegas.png" alt="Viegas Soluções" class="w-full h-auto drop-shadow-2xl">
                 <div class="mt-6 h-px bg-gradient-to-r from-emerald-500/40 to-transparent"></div>
             </div>
 
-            <!-- Navegação -->
             <nav class="space-y-3">
                 <div class="flex items-center gap-3 p-4 bg-emerald-500/10 text-emerald-400 rounded-2xl border-l-4 border-emerald-500 shadow-lg shadow-emerald-500/5">
                     <i class="fas fa-satellite-dish"></i>
@@ -80,7 +74,6 @@
             </nav>
         </div>
 
-        <!-- Info de Sistema e Logout -->
         <div class="space-y-6">
             <div class="p-4 glass rounded-2xl">
                 <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Status de Borda</p>
@@ -92,7 +85,6 @@
         </div>
     </aside>
 
-    <!-- Conteúdo Principal -->
     <main class="flex-1 p-6 md:p-10 overflow-y-auto">
 
         <!-- Header -->
@@ -111,113 +103,106 @@
         <!-- Grade de Cards em Tempo Real -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
 
-            <!-- Card RAK (Campo Real) -->
+            
+            <!-- Card RAK (Campo Real) - Multigás -->
             <div class="glass p-8 rounded-[2.5rem] border-t-4 border-sky-500 shadow-xl relative overflow-hidden group">
                 <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-biohazard text-6xl"></i></div>
-                <p class="card-title text-[10px] text-slate-500 uppercase mb-4">Nó Campo A (RAK12004)</p>
-                <div class="flex items-baseline gap-2">
-                    <span id="rak-h2s" class="text-7xl font-bold tracking-tighter">0.0</span>
-                    <span class="text-slate-500 text-xl font-bold uppercase">ppm</span>
+                <p class="card-title text-[10px] text-slate-500 uppercase mb-4">Nó Campo A (RAK12004) - Monitoramento Multigás</p>
+                
+                <!-- Valor Principal (H2S) -->
+                <div class="flex items-baseline gap-2 mb-4">
+                    <span id="rak-h2s" class="text-7xl font-bold tracking-tighter">0.00</span>
+                    <span class="text-slate-500 text-xl font-bold uppercase">ppm (H₂S)</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2 text-xs text-sky-400 font-bold">
-                    <i class="fas fa-thermometer-half"></i> <span id="rak-temp">0</span>°C
+
+                <!-- Indicadores Secundários (CO2 e Metano) -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-white/5 p-3 rounded-2xl">
+                        <p class="text-[9px] text-slate-500 uppercase font-bold">Dióxido de Carbono (CO₂)</p>
+                        <p class="text-lg font-bold text-sky-300"><span id="rak-co2">0</span> <small class="text-[10px]">ppm</small></p>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-2xl">
+                        <p class="text-[9px] text-slate-500 uppercase font-bold">Metano (CH₄)</p>
+                        <p class="text-lg font-bold text-orange-400"><span id="rak-ch4">0</span> <small class="text-[10px]">ppm</small></p>
+                    </div>
+                </div>
+
+                <div class="mt-2 flex items-center gap-3 text-xl text-sky-400 font-bold border-t border-white/5 pt-4">
+                    <i class="fas fa-thermometer-half"></i> 
+                    <span class="text-slate-400 text-sm uppercase tracking-widest">Temperatura:</span>
+                    <span id="rak-temp">0.0</span>°C
                 </div>
             </div>
 
-            <!-- Card NIT (Campo Real) -->
+            <!-- Card NIT (Campo Real) - Umidade -->
             <div class="glass p-8 rounded-[2.5rem] border-t-4 border-emerald-500 shadow-xl relative overflow-hidden group">
                 <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-tint text-6xl"></i></div>
-                <p class="card-title text-[10px] text-slate-500 uppercase mb-4">Nó Campo B (NIT21L)</p>
+                <p class="card-title text-[10px] text-slate-500 uppercase mb-4">Nó Campo B (NIT21L) - Umidade</p>
                 <div class="flex items-baseline gap-2 text-emerald-400">
                     <span id="nit-umid" class="text-7xl font-bold tracking-tighter">0.0</span>
                     <span class="text-emerald-600/50 text-xl font-bold uppercase">%</span>
                 </div>
-                <div class="mt-4 flex items-center gap-2 text-xs text-emerald-500 font-bold">
-                    <i class="fas fa-thermometer-half"></i> <span id="nit-temp">0</span>°C
+                <div class="mt-6 flex items-center gap-3 text-xl text-emerald-500 font-bold border-t border-white/5 pt-4">
+                    <i class="fas fa-thermometer-half"></i> 
+                    <span class="text-slate-400 text-sm uppercase tracking-widest">Temperatura:</span>
+                    <span id="nit-temp">0.0</span>°C
                 </div>
             </div>
 
-            <!-- Card Auditoria (Pentest / Borda) -->
+            <!-- Card Auditoria (Pentest / Borda) - Gás H2S -->
             <div id="sim-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-purple-500 shadow-xl transition-all duration-500">
                 <div class="flex justify-between items-start mb-4">
-                    <p class="card-title text-[10px] text-slate-500 uppercase tracking-widest">Auditoria de Borda (MikroTik)</p>
+                    <p class="card-title text-[10px] text-slate-500 uppercase tracking-widest">Auditoria de Borda (MikroTik) - H₂S</p>
                     <span id="sim-risco" class="text-[9px] font-black px-3 py-1 bg-emerald-500 text-white rounded-full uppercase">Estável</span>
                 </div>
-                <div class="text-7xl font-bold tracking-tighter text-white" id="sim-h2s">0.0</div>
+                <div class="flex items-baseline gap-2">
+                    <span id="sim-h2s" class="text-7xl font-bold tracking-tighter text-white">0.00</span>
+                    <span class="text-slate-500 text-xl font-bold uppercase">ppm</span>
+                </div>
                 <div class="mt-4 text-[10px] text-slate-500 font-bold uppercase flex justify-between italic">
                     <span>Sync: <span id="sim-time">--:--:--</span></span>
-                    <span class="text-purple-400">Lab Experimental</span>
+                    <span class="text-purple-400">Ambiente de Teste</span>
                 </div>
             </div>
 
         </div>
 
-        <!-- Seção de Tabelas de Histórico -->
+        <!-- Tabelas de Histórico -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-            
-            <!-- Histórico RAK -->
             <div class="glass p-6 rounded-[2rem]">
                 <h3 class="text-xs font-bold uppercase tracking-widest text-sky-400 mb-4 flex items-center gap-2">
-                    <i class="fas fa-list-ul"></i> Log Telemetria RAK
+                    <i class="fas fa-list-ul"></i> Log Gás H₂S (RAK)
                 </h3>
                 <table class="w-full text-xs text-left">
                     <thead class="text-slate-500 border-b border-white/5 uppercase text-[10px]">
-                        <tr><th class="pb-3">Timestamp</th><th class="pb-3 text-right">Valor PPM</th></tr>
+                        <tr><th class="pb-3">Timestamp</th><th class="pb-3 text-right">PPM</th></tr>
                     </thead>
-                    <tbody id="table-rak" class="text-slate-400">
-                        <!-- Gerado via JS -->
-                    </tbody>
+                    <tbody id="table-rak" class="text-slate-400"></tbody>
                 </table>
             </div>
 
-            <!-- Histórico NIT -->
             <div class="glass p-6 rounded-[2rem]">
                 <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-4 flex items-center gap-2">
-                    <i class="fas fa-list-ul"></i> Log Telemetria NIT
+                    <i class="fas fa-list-ul"></i> Log Umidade (NIT)
                 </h3>
                 <table class="w-full text-xs text-left">
                     <thead class="text-slate-500 border-b border-white/5 uppercase text-[10px]">
                         <tr><th class="pb-3">Timestamp</th><th class="pb-3 text-right">Umidade %</th></tr>
                     </thead>
-                    <tbody id="table-nit" class="text-slate-400">
-                        <!-- Gerado via JS -->
-                    </tbody>
+                    <tbody id="table-nit" class="text-slate-400"></tbody>
                 </table>
             </div>
 
-            <!-- Histórico Auditoria (Fundamental para o TCC) -->
             <div class="glass p-6 rounded-[2rem]">
                 <h3 class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-4 flex items-center gap-2">
-                    <i class="fas fa-user-shield"></i> Registro de Injeção de Borda
+                    <i class="fas fa-user-shield"></i> Registro de Injeção H₂S
                 </h3>
                 <table class="w-full text-xs text-left">
                     <thead class="text-slate-500 border-b border-white/5 uppercase text-[10px]">
                         <tr><th class="pb-3">Hora</th><th class="pb-3">ppm</th><th class="pb-3 text-right">Status</th></tr>
                     </thead>
-                    <tbody id="table-sim" class="text-slate-400">
-                        <!-- Gerado via JS -->
-                    </tbody>
+                    <tbody id="table-sim" class="text-slate-400"></tbody>
                 </table>
-            </div>
-
-        </div>
-
-        <!-- Seção Mapa e Análise -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="glass p-5 rounded-[2.5rem]">
-                <div id="map"></div>
-            </div>
-
-            <div class="glass p-10 rounded-[2.5rem] flex flex-col justify-center border-r-4 border-emerald-500/20">
-                <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tighter">Análise de Redes Distribuídas</h3>
-                <div class="space-y-4 text-slate-400 text-sm leading-relaxed italic">
-                    <p>
-                        "A arquitetura proposta integra dispositivos LoRaWAN via Tago.io Cloud, utilizando um nó MikroTik CHR como Gateway de Borda. Este ambiente permite auditar a integridade dos dados e identificar vulnerabilidades de transporte (HTTP vs HTTPS)."
-                    </p>
-                    <p class="text-xs font-bold text-emerald-500/60 not-italic uppercase tracking-widest">
-                        Localização Geográfica: Salvador, Bahia - Brasil
-                    </p>
-                </div>
             </div>
         </div>
 
@@ -227,10 +212,8 @@
 
     </main>
 
-    <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inicialização do Mapa Leaflet
         var map = L.map('map', { zoomControl: false }).setView([-12.9704, -38.5067], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         
@@ -242,31 +225,26 @@
         });
 
         L.marker([-12.9704, -38.5067], { icon: customIcon }).addTo(map)
-            .bindPopup("<b style='color:#020617'>Campo de Sensores Bahia</b><br>RAK12004 & NIT21L");
+            .bindPopup("<b style='color:#020617'>Sensores Bahia</b><br>Monitoramento Ativo");
 
-        // Função de Atualização via AJAX
         async function updateDashboard() {
             try {
                 const response = await fetch('/api/status');
                 const data = await response.json();
 
-                // Atualizar Cards RAK
                 document.getElementById('rak-h2s').innerText = data.rak.h2s.toFixed(2);
+                document.getElementById('rak-co2').innerText = data.rak.co2.toFixed(0); // CO2 é valor inteiro
+                document.getElementById('rak-ch4').innerText = data.rak.ch4.toFixed(2);
                 document.getElementById('rak-temp').innerText = data.rak.temp.toFixed(1);
-
-                // Atualizar Cards NIT
                 document.getElementById('nit-umid').innerText = data.nit.umid.toFixed(1);
                 document.getElementById('nit-temp').innerText = data.nit.temp.toFixed(1);
-
-                // Atualizar Cards Auditoria
                 document.getElementById('sim-h2s').innerText = data.sim.h2s.toFixed(2);
-                document.getElementById('sim-time').innerText = data.sim.time_str;
+                document.getElementById('sim-time').innerText = data.sim.time_str || '--:--:--';
                 
                 const simRisco = document.getElementById('sim-risco');
                 const simCard = document.getElementById('sim-card');
                 simRisco.innerText = data.sim.risco;
 
-                // Lógica de Cores para o Alerta de Auditoria
                 if(data.sim.risco === "CRÍTICO") {
                     simRisco.className = "text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-full uppercase animate-pulse";
                     simCard.classList.add('border-red-500', 'shadow-red-500/20');
@@ -275,29 +253,21 @@
                     simCard.classList.remove('border-red-500', 'shadow-red-500/20');
                 }
 
-                // Renderizar Tabelas (Últimos 5-10 registros)
                 renderTable('table-rak', data.rak.history, 'val', 'sky');
                 renderTable('table-nit', data.nit.history, 'val', 'emerald');
                 renderTableSim('table-sim', data.sim.history);
 
-                // Alerta de Inatividade (Ataque DoS no MikroTik ou queda do ngrok)
                 const now = Date.now() / 1000;
                 const delay = now - data.sim.ts;
                 if (data.sim.ts > 0 && delay > 45) {
                     document.getElementById('status-card').className = "offline-blink px-8 py-3 rounded-full flex items-center space-x-3 transition-all";
                     document.getElementById('status-text').innerText = "BORDA OFFLINE: POSSÍVEL ATAQUE";
-                    document.getElementById('status-text').className = "text-xs font-black uppercase tracking-widest text-white";
-                    document.getElementById('dot').className = "w-2.5 h-2.5 bg-white rounded-full";
                 } else {
                     document.getElementById('status-card').className = "bg-slate-800/80 px-8 py-3 rounded-full border border-slate-700 flex items-center space-x-3";
                     document.getElementById('status-text').innerText = "Gateway Sincronizado";
-                    document.getElementById('status-text').className = "text-xs font-bold uppercase tracking-widest text-emerald-400";
-                    document.getElementById('dot').className = "w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]";
                 }
 
-            } catch (error) {
-                console.error("Erro na atualização:", error);
-            }
+            } catch (error) { console.error("Erro:", error); }
         }
 
         function renderTable(id, history, key, color) {
@@ -317,7 +287,7 @@
         function renderTableSim(id, history) {
             const tbody = document.getElementById(id);
             if (!history || history.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='3' class='py-4 text-center opacity-30 italic'>Sem logs de auditoria...</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='3' class='py-4 text-center opacity-30 italic'>Sem logs...</td></tr>";
                 return;
             }
             tbody.innerHTML = history.map(h => `
@@ -329,9 +299,8 @@
             `).join('');
         }
 
-        // Intervalo de 3 segundos para atualização fluida
         setInterval(updateDashboard, 3000);
-        updateDashboard(); // Chamada inicial
+        updateDashboard();
     </script>
 </body>
 </html>
