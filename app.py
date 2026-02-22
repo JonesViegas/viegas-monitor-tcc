@@ -10,6 +10,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
+app.secret_key = os.environ.get('SECRET_KEY', 'chave-secreta-para-o-tcc-viegas-2026')
 
 # Pega a URL do banco do .env (local) ou do Render (nuvem)
 DATABASE_URL = os.getenv("DATABASE_URL")
