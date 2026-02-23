@@ -245,7 +245,8 @@
                 const statusText = document.getElementById('status-text');
                 const statusDot = document.getElementById('status-dot');
 
-                if (lastTs > 0 && (now - lastTs) > 210) {
+                if (lastTs > 0 && (now - lastTs) > 300) {
+                    statusText.innerText = "SISTEMA EM ESPERA";
                     statusCard.classList.add('offline-blink');
                     statusText.innerText = "STANDBY / BORDA OFFLINE";
                     statusText.classList.replace('text-emerald-400', 'text-white');
