@@ -149,15 +149,14 @@ def get_status():
         ts_sim = get_last_ts(ID_MIKROTIK)
         data = {
             "rak": {
-                "h2s":     get_latest(ID_RAK, ["H2S"]),
+                # Agora focando em CO2 e TEMP para o primeiro card
                 "co2":     get_latest(ID_RAK, ["CO2"]),
-                "ch4":     get_latest(ID_RAK, ["CH4"]),
-                "temp":    get_latest(ID_RAK, ["TEMP"]),
-                "history": get_history(ID_RAK, ["H2S"])
+                "temp":    get_latest(ID_RAK, ["TEMP", "TEMPERATURE"]),
+                "history": get_history(ID_RAK, ["CO2"]) # Tabela mostra histórico de CO2
             },
             "nit": {
-                "umid":    get_latest(ID_NIT, ["UMID"]),
-                "temp":    get_latest(ID_NIT, ["TEMP"]),
+                "umid":    get_latest(ID_NIT, ["UMID", "HUMIDITY"]),
+                "temp":    get_latest(ID_NIT, ["TEMP", "TEMPERATURE"]),
                 "history": get_history(ID_NIT, ["UMID"])
             },
             "sim": {
@@ -171,7 +170,7 @@ def get_status():
     except Exception:
         print(traceback.format_exc())
         return jsonify({"error": "Erro interno"}), 500
-
+    
 
 @app.route('/webhook', methods=['POST'])
 @app.route('/api/v1/webhook/tago', methods=['POST'])

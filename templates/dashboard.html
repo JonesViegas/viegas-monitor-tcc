@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Viegas - Dashboard de Monitoramento Híbrido</title>
+    <title>Viegas - Monitoramento Híbrido</title>
 
     <!-- Frameworks e Fontes -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -25,30 +24,29 @@
             border: 1px solid rgba(255,255,255,0.05); 
         }
 
+        /* Animação para estado offline */
         .offline-blink { 
-            animation: blink-red 0.8s infinite; 
-            background: #ef4444 !important; 
-            color: white !important;
+            animation: blink-red 1.5s infinite; 
+            background: #7f1d1d !important; 
+            border-color: #ef4444 !important;
         }
 
         @keyframes blink-red { 
-            50% { opacity: 0.7; box-shadow: 0 0 20px #ef4444; } 
+            50% { opacity: 0.8; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); } 
         }
 
-        #map { 
-            height: 300px; 
-            border-radius: 24px; 
-            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); 
-        }
-
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #020617; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #10b981; }
 
         .card-title {
-            letter-spacing: 0.15em;
+            letter-spacing: 0.2em;
             font-weight: 700;
+            font-size: 0.65rem;
+        }
+
+        .data-value {
+            line-height: 1;
         }
     </style>
 </head>
@@ -56,155 +54,143 @@
 <body class="flex h-screen">
 
     <!-- Sidebar Lateral -->
-    <aside class="w-72 glass border-r border-white/5 p-6 flex flex-col justify-between hidden md:flex">
+    <aside class="w-72 glass border-r border-white/5 p-8 flex flex-col justify-between hidden md:flex">
         <div>
             <div class="mb-10">
-                <img src="/static/img/logo-viegas.png" alt="Viegas Soluções" class="w-full h-auto drop-shadow-2xl">
+                <img src="/static/img/logo-viegas.png" alt="Viegas" class="w-full h-auto drop-shadow-2xl">
                 <div class="mt-6 h-px bg-gradient-to-r from-emerald-500/40 to-transparent"></div>
             </div>
 
-            <nav class="space-y-3">
-                <div class="flex items-center gap-3 p-4 bg-emerald-500/10 text-emerald-400 rounded-2xl border-l-4 border-emerald-500 shadow-lg shadow-emerald-500/5">
+            <nav class="space-y-4">
+                <div class="flex items-center gap-3 p-4 bg-emerald-500/10 text-emerald-400 rounded-2xl border-l-4 border-emerald-500 shadow-lg">
                     <i class="fas fa-satellite-dish"></i>
-                    <span class="font-bold uppercase text-sm tracking-widest">Nós Ativos</span>
+                    <span class="font-bold uppercase text-xs tracking-widest">Nós Ativos</span>
                 </div>
                 <div class="flex items-center gap-3 p-4 text-slate-500 hover:text-slate-300 transition cursor-not-allowed">
                     <i class="fas fa-brain"></i>
-                    <span class="font-bold uppercase text-sm tracking-widest">IA Predição</span>
+                    <span class="font-bold uppercase text-xs tracking-widest">IA Predição</span>
                 </div>
             </nav>
         </div>
 
         <div class="space-y-6">
-            <div class="p-4 glass rounded-2xl">
-                <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Status de Borda</p>
+            <div class="p-4 glass rounded-2xl border border-emerald-500/20">
+                <p class="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-1">Status de Borda</p>
                 <p class="text-xs text-emerald-400 font-bold">MikroTik CHR v7.20</p>
             </div>
-            <a href="/logout" class="flex items-center gap-2 text-slate-500 hover:text-red-400 text-xs font-bold uppercase tracking-[0.2em] transition group">
+            <a href="/logout" class="flex items-center gap-2 text-slate-500 hover:text-red-400 text-xs font-bold uppercase tracking-widest transition group">
                 <i class="fas fa-power-off group-hover:animate-pulse"></i> Sair do Sistema
             </a>
         </div>
     </aside>
 
+    <!-- Área Principal -->
     <main class="flex-1 p-6 md:p-10 overflow-y-auto">
 
         <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
             <div>
                 <h2 class="text-4xl font-bold uppercase tracking-tighter text-white">Gestão de Riscos <span class="text-emerald-500 italic">Ambientais</span></h2>
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Monitoramento em tempo real - Camada Híbrida</p>
+                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-1">Monitoramento em Tempo Real - Camada Híbrida</p>
             </div>
 
-            <div id="status-card" class="bg-slate-800/80 px-8 py-3 rounded-full border border-slate-700 flex items-center space-x-3 transition-all duration-500">
-                <div id="dot" class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></div>
-                <span id="status-text" class="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">Gateway Sincronizado</span>
+            <div id="status-card" class="bg-slate-800/80 px-8 py-3 rounded-full border border-white/5 flex items-center space-x-4 transition-all duration-500">
+                <div id="status-dot" class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></div>
+                <span id="status-text" class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Gateway Sincronizado</span>
             </div>
         </header>
 
         <!-- Grade de Cards em Tempo Real -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
 
-            <!-- Card RAK (Campo Real) -->
-            <div id="rak-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-sky-500 shadow-xl relative overflow-hidden group transition-all">
-                <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-biohazard text-6xl"></i></div>
-                <p class="card-title text-[10px] text-slate-500 uppercase mb-4">Nó Campo A (RAK12004) - Monitoramento Multigás</p>
+            <!-- Card 01: RAK (Foco CO2 e Temp) -->
+            <div id="rak-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-sky-500 shadow-2xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-wind text-6xl"></i></div>
+                <p class="card-title text-slate-500 uppercase mb-6">Campo A (RAK12004) - Qualidade do Ar</p>
                 
-                <div class="flex items-baseline gap-2 mb-4">
-                    <span id="rak-h2s" class="text-7xl font-bold tracking-tighter">0.00</span>
-                    <span class="text-slate-500 text-xl font-bold uppercase">ppm (H₂S)</span>
+                <div class="flex items-baseline gap-2 mb-8">
+                    <span id="rak-co2" class="data-value text-7xl font-bold tracking-tighter text-white">0</span>
+                    <span class="text-sky-500 text-xl font-bold uppercase">ppm <small class="text-xs text-slate-500">(CO₂)</small></span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-white/5 p-3 rounded-2xl">
-                        <p class="text-[9px] text-slate-500 uppercase font-bold">Dióxido de Carbono (CO₂)</p>
-                        <p class="text-lg font-bold text-sky-300"><span id="rak-co2">0</span> <small class="text-[10px]">ppm</small></p>
-                    </div>
-                    <div class="bg-white/5 p-3 rounded-2xl">
-                        <p class="text-[9px] text-slate-500 uppercase font-bold">Metano (CH₄)</p>
-                        <p class="text-lg font-bold text-orange-400"><span id="rak-ch4">0</span> <small class="text-[10px]">ppm</small></p>
-                    </div>
-                </div>
-
-                <div class="mt-2 flex items-center gap-3 text-xl text-sky-400 font-bold border-t border-white/5 pt-4">
-                    <i class="fas fa-thermometer-half"></i> 
-                    <span class="text-slate-400 text-sm uppercase tracking-widest">Temp:</span>
-                    <span id="rak-temp">0.0</span>°C
+                <div class="flex items-center gap-4 text-3xl font-bold border-t border-white/5 pt-6">
+                    <i class="fas fa-thermometer-half text-sky-500"></i>
+                    <span class="text-slate-400 text-sm uppercase tracking-widest font-semibold">Temp:</span>
+                    <div class="text-white"><span id="rak-temp">0.0</span><span class="text-sky-500 text-lg">°C</span></div>
                 </div>
             </div>
 
-            <!-- Card NIT (Campo Real) -->
-            <div id="nit-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-emerald-500 shadow-xl relative overflow-hidden group transition-all">
-                <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-tint text-6xl"></i></div>
-                <p class="card-title text-[10px] text-slate-500 uppercase mb-4">Nó Campo B (NIT21L) - Solo/Ar</p>
-                <div class="flex items-baseline gap-2 text-emerald-400">
-                    <span id="nit-umid" class="text-7xl font-bold tracking-tighter">0.0</span>
+            <!-- Card 02: NIT (Umidade e Temp) -->
+            <div id="nit-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-emerald-500 shadow-2xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-droplet text-6xl"></i></div>
+                <p class="card-title text-slate-500 uppercase mb-6">Campo B (NIT21L) - Umidade Solo/Ar</p>
+                
+                <div class="flex items-baseline gap-2 mb-8">
+                    <span id="nit-umid" class="data-value text-7xl font-bold tracking-tighter text-emerald-400">0.0</span>
                     <span class="text-emerald-600/50 text-xl font-bold uppercase">%</span>
                 </div>
-                <div class="mt-6 flex items-center gap-3 text-xl text-emerald-500 font-bold border-t border-white/5 pt-4">
-                    <i class="fas fa-thermometer-half"></i> 
-                    <span class="text-slate-400 text-sm uppercase tracking-widest">Temp:</span>
-                    <span id="nit-temp">0.0</span>°C
+
+                <div class="flex items-center gap-4 text-2xl font-bold border-t border-white/5 pt-6">
+                    <i class="fas fa-temperature-low text-emerald-500"></i>
+                    <span class="text-slate-400 text-sm uppercase tracking-widest font-semibold">Temp:</span>
+                    <div class="text-white"><span id="nit-temp">0.0</span><span class="text-emerald-500 text-lg">°C</span></div>
                 </div>
             </div>
 
-            <!-- Card Auditoria (O ALVO DO ATAQUE) -->
-            <div id="sim-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-purple-500 shadow-xl transition-all duration-500 relative">
-                <div class="flex justify-between items-start mb-4">
-                    <p class="card-title text-[10px] text-slate-500 uppercase tracking-widest">Auditoria de Borda (MikroTik) - H₂S</p>
-                    <span id="sim-risco" class="text-[9px] font-black px-3 py-1 bg-emerald-500 text-white rounded-full uppercase">Estável</span>
+            <!-- Card 03: MikroTik (Auditoria H2S) -->
+            <div id="sim-card" class="glass p-8 rounded-[2.5rem] border-t-4 border-purple-500 shadow-2xl relative transition-all duration-500">
+                <div class="flex justify-between items-start mb-6">
+                    <p class="card-title text-slate-500 uppercase">Auditoria de Borda (MikroTik)</p>
+                    <span id="sim-risco" class="text-[9px] font-black px-3 py-1 bg-emerald-500 text-white rounded-full uppercase tracking-tighter">Estável</span>
                 </div>
-                <div class="flex items-baseline gap-2">
-                    <span id="sim-h2s" class="text-7xl font-bold tracking-tighter text-white">0.00</span>
-                    <span class="text-slate-500 text-xl font-bold uppercase">ppm</span>
+
+                <div class="flex items-baseline gap-2 mb-6">
+                    <span id="sim-h2s" class="data-value text-7xl font-bold tracking-tighter text-white">0.00</span>
+                    <span class="text-purple-400 text-xl font-bold uppercase">ppm <small class="text-[10px] text-slate-500">(H₂S)</small></span>
                 </div>
-                <div class="mt-4 text-[10px] text-slate-500 font-bold uppercase flex justify-between italic">
-                    <span>Sync: <span id="sim-time">--:--:--</span></span>
-                    <span class="text-purple-400">Ambiente de Teste</span>
+
+                <div class="flex justify-between items-center border-t border-white/5 pt-6">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-clock text-purple-500 text-xs"></i>
+                        <span class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Sync: <span id="sim-time" class="text-white">--:--:--</span></span>
+                    </div>
+                    <span class="text-[10px] text-purple-400/50 font-bold uppercase tracking-widest italic">Auditoria de Borda</span>
                 </div>
             </div>
 
         </div>
 
         <!-- Tabelas de Histórico -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="glass p-6 rounded-[2rem]">
-                <h3 class="text-xs font-bold uppercase tracking-widest text-sky-400 mb-4 flex items-center gap-2">
-                    <i class="fas fa-list-ul"></i> Log Gás H₂S (RAK)
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-400 mb-6 flex items-center gap-2">
+                    <i class="fas fa-list-ul"></i> Histórico CO₂ (RAK)
                 </h3>
                 <table class="w-full text-xs text-left">
-                    <thead class="text-slate-500 border-b border-white/5 uppercase text-[10px]">
-                        <tr><th class="pb-3">Timestamp</th><th class="pb-3 text-right">PPM</th></tr>
-                    </thead>
                     <tbody id="table-rak" class="text-slate-400"></tbody>
                 </table>
             </div>
 
             <div class="glass p-6 rounded-[2rem]">
-                <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-400 mb-4 flex items-center gap-2">
-                    <i class="fas fa-list-ul"></i> Log Umidade (NIT)
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400 mb-6 flex items-center gap-2">
+                    <i class="fas fa-list-ul"></i> Histórico Umidade (NIT)
                 </h3>
                 <table class="w-full text-xs text-left">
-                    <thead class="text-slate-500 border-b border-white/5 uppercase text-[10px]">
-                        <tr><th class="pb-3">Timestamp</th><th class="pb-3 text-right">%</th></tr>
-                    </thead>
                     <tbody id="table-nit" class="text-slate-400"></tbody>
                 </table>
             </div>
 
             <div class="glass p-6 rounded-[2rem]">
-                <h3 class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-4 flex items-center gap-2">
-                    <i class="fas fa-user-shield"></i> Registro de Injeção H₂S
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-400 mb-6 flex items-center gap-2">
+                    <i class="fas fa-shield-halved"></i> Auditoria H₂S (Logs)
                 </h3>
                 <table class="w-full text-xs text-left">
-                    <thead class="text-slate-500 border-b border-white/5 uppercase text-[10px]">
-                        <tr><th class="pb-3">Hora</th><th class="pb-3">ppm</th><th class="pb-3 text-right">Status</th></tr>
-                    </thead>
                     <tbody id="table-sim" class="text-slate-400"></tbody>
                 </table>
             </div>
         </div>
 
-        <footer class="mt-12 text-center text-slate-600 text-[10px] font-bold uppercase tracking-[0.5em] pb-10">
+        <footer class="mt-16 text-center text-slate-600 text-[10px] font-bold uppercase tracking-[0.5em] pb-10">
             Viegas Soluções Inovadoras &copy; 2026 | Especialização em Redes e Computação Distribuída
         </footer>
 
@@ -216,96 +202,86 @@
                 const response = await fetch('/api/status');
                 const data = await response.json();
 
+                // Função auxiliar para evitar erros de elemento nulo
+                const updateText = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = val;
+                };
+
                 // Atualização CARD RAK
-                document.getElementById('rak-h2s').innerText = data.rak.h2s.toFixed(2);
-                document.getElementById('rak-co2').innerText = data.rak.co2.toFixed(0);
-                document.getElementById('rak-ch4').innerText = (data.rak.ch4 || 0).toFixed(2);
-                document.getElementById('rak-temp').innerText = (data.rak.temp || 0).toFixed(1);
+                updateText('rak-co2', (data.rak.co2 || 0).toFixed(0));
+                updateText('rak-temp', (data.rak.temp || 0).toFixed(1));
 
                 // Atualização CARD NIT
-                document.getElementById('nit-umid').innerText = data.nit.umid.toFixed(1);
-                document.getElementById('nit-temp').innerText = data.nit.temp.toFixed(1);
+                updateText('nit-umid', (data.nit.umid || 0).toFixed(1));
+                updateText('nit-temp', (data.nit.temp || 0).toFixed(1));
 
-                // Atualização CARD SIMULAÇÃO (MIKROTIK)
-                const h2sSim = data.sim.h2s;
-                document.getElementById('sim-h2s').innerText = h2sSim.toFixed(2);
-                document.getElementById('sim-time').innerText = data.sim.ts_str || data.sim.ts || '--:--:--';
-                
+                // Atualização CARD MIKROTIK
+                const h2s = data.sim.h2s || 0;
+                updateText('sim-h2s', h2s.toFixed(2));
+                updateText('sim-time', data.sim.ts_str || '--:--:--');
+
+                // Lógica de Alerta Visual para H2S
                 const simRisco = document.getElementById('sim-risco');
                 const simCard = document.getElementById('sim-card');
-
-                // Lógica de Alerta Visual (Integridade comprometida)
-                if(h2sSim > 15) {
-                    simRisco.innerText = "CRÍTICO";
-                    simRisco.className = "text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-full uppercase animate-pulse";
-                    simCard.className = "glass p-8 rounded-[2.5rem] border-t-4 border-red-600 shadow-2xl shadow-red-500/20 bg-red-900/10 transition-all duration-500";
+                if(h2s > 15) {
+                    if(simRisco) {
+                        simRisco.innerText = "CRÍTICO";
+                        simRisco.className = "text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-full animate-pulse";
+                    }
+                    if(simCard) simCard.style.borderColor = "#dc2626";
                 } else {
-                    simRisco.innerText = "ESTÁVEL";
-                    simRisco.className = "text-[9px] font-black px-3 py-1 bg-emerald-500 text-white rounded-full uppercase";
-                    simCard.className = "glass p-8 rounded-[2.5rem] border-t-4 border-purple-500 shadow-xl transition-all duration-500";
+                    if(simRisco) {
+                        simRisco.innerText = "ESTÁVEL";
+                        simRisco.className = "text-[9px] font-black px-3 py-1 bg-emerald-500 text-white rounded-full";
+                    }
+                    if(simCard) simCard.style.borderColor = "#a855f7";
                 }
 
-                // Lógica de Disponibilidade (DoS detectado)
-                // Se a última atualização foi há mais de 45 segundos, considera offline
+                // Lógica de Status do Gateway (Offline se > 3.5 minutos - 210s)
                 const now = Date.now() / 1000;
-                const delay = now - data.sim.ts_unix; // O backend deve enviar ts_unix
-                
+                const lastTs = data.sim.ts_unix || 0;
                 const statusCard = document.getElementById('status-card');
                 const statusText = document.getElementById('status-text');
-                const statusDot = document.getElementById('dot');
+                const statusDot = document.getElementById('status-dot');
 
-                if (data.sim.ts_unix > 0 && (now - data.sim.ts_unix) > 60) {
-                    statusCard.className = "offline-blink px-8 py-3 rounded-full flex items-center space-x-3 transition-all";
-                    statusText.innerText = "BORDA OFFLINE: POSSÍVEL ATAQUE";
-                    statusText.className = "text-xs font-black uppercase tracking-[0.2em] text-white";
+                if (lastTs > 0 && (now - lastTs) > 210) {
+                    statusCard.classList.add('offline-blink');
+                    statusText.innerText = "STANDBY / BORDA OFFLINE";
+                    statusText.classList.replace('text-emerald-400', 'text-white');
                     statusDot.className = "w-2.5 h-2.5 bg-white rounded-full animate-ping";
                 } else {
-                    statusCard.className = "bg-slate-800/80 px-8 py-3 rounded-full border border-slate-700 flex items-center space-x-3";
+                    statusCard.classList.remove('offline-blink');
                     statusText.innerText = "Gateway Sincronizado";
-                    statusText.className = "text-xs font-black uppercase tracking-[0.2em] text-emerald-400";
+                    statusText.className = "text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400";
                     statusDot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]";
                 }
 
-                // Renderização das Tabelas (Se o backend enviar o histórico)
-                if(data.rak.history) renderTable('table-rak', data.rak.history, 'val', 'sky');
-                if(data.nit.history) renderTable('table-nit', data.nit.history, 'val', 'emerald');
-                if(data.sim.history) renderTableSim('table-sim', data.sim.history);
+                // Renderização das Tabelas
+                renderTable('table-rak', data.rak.history, 'val', 'sky');
+                renderTable('table-nit', data.nit.history, 'val', 'emerald');
+                renderTable('table-sim', data.sim.history, 'val', 'white');
 
             } catch (error) { 
-                console.error("Erro ao buscar dados da API:", error); 
+                console.error("Erro na atualização do painel:", error); 
             }
         }
 
-        function renderTable(id, history, key, color) {
+        function renderTable(id, history, key, colorClass) {
             const tbody = document.getElementById(id);
-            if (!history || history.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='2' class='py-4 text-center opacity-30 italic'>Aguardando dados...</td></tr>";
+            if (!tbody || !history || history.length === 0) {
+                if(tbody) tbody.innerHTML = "<tr><td class='py-4 text-center text-slate-600 italic text-[10px]'>Aguardando sinal...</td></tr>";
                 return;
             }
             tbody.innerHTML = history.map(h => `
                 <tr class="border-b border-white/5 hover:bg-white/5 transition">
-                    <td class="py-2.5 font-mono text-[10px]">${h.time}</td>
-                    <td class="py-2.5 text-right font-bold text-${color}-400">${h[key]}</td>
+                    <td class="py-3 font-mono text-[10px] opacity-40">${h.time}</td>
+                    <td class="py-3 text-right font-bold text-${colorClass}-400">${h[key]}</td>
                 </tr>
             `).join('');
         }
 
-        function renderTableSim(id, history) {
-            const tbody = document.getElementById(id);
-            if (!history || history.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='3' class='py-4 text-center opacity-30 italic'>Sem logs...</td></tr>";
-                return;
-            }
-            tbody.innerHTML = history.map(h => `
-                <tr class="border-b border-white/5 hover:bg-white/5 transition">
-                    <td class="py-2.5 font-mono text-[10px]">${h.time}</td>
-                    <td class="py-2.5 font-bold text-white">${h.val}</td>
-                    <td class="py-2.5 text-right font-black ${h.val > 15 ? 'text-red-400' : 'text-emerald-500'}">${h.val > 15 ? 'CRÍTICO' : 'ESTÁVEL'}</td>
-                </tr>
-            `).join('');
-        }
-
-        // Atualização automática a cada 3 segundos
+        // Intervalo de 3 segundos para atualizar a interface
         setInterval(updateDashboard, 3000);
         updateDashboard();
     </script>
